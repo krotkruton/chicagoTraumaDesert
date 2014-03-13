@@ -1,0 +1,94 @@
+@main("Chicago Trauma Desert")(null)(null)(null) {
+<div class="row">
+   <div class="span14">
+		<div class="well">
+			<div id="about">
+				<h2>Disclaimer</h2>
+				<div class="section">
+					<p>The information here is taken from many sources, and I do not guarantee it's accuracy.  For information that I collected, I tried to document
+					it as carefully as possible in the Methods section of this page.
+					</p>
+				</div>
+				
+				<h2>The Story</h2>
+				<div class="section">
+					<p>Last year, I watched an episode of HBO's VICE series entitled "Gangs and Oil" that featured a segment about violence in Chicago.
+					In the episode, the reporter talked with police officers, gang members, and community leaders, and towards the end, there was 
+					some information that really struck me:
+					<blockquote>Not only has the South Side lost the majority of its schools, clinics, and public housing, they don't even have a hospital to treat all 
+					the gunshot wounds that happen here, which is doubly fucked because there are 3 hospitals in the neighborhood, all of which used to treat 
+					gunshot wounds, but stopped because it was costing them too much money.</blockquote>
+					This just floored me with a mix of emotions.  I'd like to say I was shocked, but the cynical side of me suppressed that feeling pretty quickly.
+					Then the skeptic in me took over.  At first I wanted to confirm their claim, and then I wanted to see just how bad it was.
+					<br><br>
+					With that in mind, I set out to collect data and attempt to visualize it in a meaningful way.
+					</p>
+				</div>
+				
+				<h2>Layers</h2>
+				<div class="section">
+					<p>There are a variety of different layers available: hospital markers, gunshot markers, and drive time maps.
+					</p>
+					<h4>Hospital Markers</h4>
+					<p>Hospitals are broken up into Existing and Potential.  The Existing Hospitals are the 4 hospitals used for "Existing" contour maps.  The Potential Hospitals are the 3 additional hospitals used in the "Potential" Contour maps.
+					</p>
+					<h4>Gunshot Markers</h4>
+					<p>The gunshot markers represent homicides due to gunshots for the year 2013.
+					</p>
+					<h4>Drive Time Maps</h4>
+					<p>Drive time maps are contour or heat maps that display the drive time or difference in time at various locations on the map.  There are three basic types:
+						<ul>
+							<li>Existing - Maps labeled "Existing" show the time it takes to one of the 4 existing Trauma One Hospitals.</li>
+							<li>Potential - Maps labeled "Potential" show the time it takes to any existing Trauma One Hospital or the 3 hospitals that previous accepted gunshot victims.</li>
+							<li>Difference - Maps labeled "Difference" show the difference between "Existing" and "Potential" drive times.</li>
+						</ul>
+						Additionally, the maps are labeled with the interval between contour levels and the minimum level.
+						<br><br>
+						For example, the map labeled "Existing Map - 5 Min Intervals > 10" displays the time to Existing Trauma One Hospitals, where each color represents a span of 5 minutes and the color representing the lowest level contains all locations with drive times between 0 and 10 minutes.
+					</p>
+				</div>
+				
+				<h2>Methods and Assumptions</h2>
+				<div class="section">
+					<h4>Hospital Selection</h4>
+					<p>First, the Existing and Potential drive times were collected based on the assumption that there are 4 Existing Trauma One hospitals and 
+					3 Potential Trauma One Hospitals, as was claimed in the episode of Vice.  The 4 Existing Trauma One Hospitals can be found on the references page.
+					The 3 Potential Trauma One Hospitals were taken from the Vice episode, and are University of Chicago Medical Center, St Bernard Hospital, Provident Hospital of Cook County.
+					<br><br>
+					Now, here's where I made a bit of a leap.  As far as I could tell, there's no easy way to gather a list of hospitals that accept gun shot victims.
+					In my search, I came across Trauma Center designations, and found that "A Level I Trauma Center is capable of providing total care for every aspect of injury" <a href="http://www.amtrauma.org/resources/trauma-categorization/index.aspx">ref</a>.
+					<br>
+					Level 2 Trauma Centers may also be able to care for gun shot victims, but since there are no Trauma Two Hospitals in the city of Chicago, I decided that the four existing
+					Trauma One Hospitals would be a good start.
+					</p>
+					<h4>Drive Time Calculation</h4>
+					<p>To generate the drivetimes, I used Google Distance Matrix API.  I ran the numbers over a period of few days around the weekend of 2/10/14.
+					To the best of my knowledge, the drive times returned by the API are the same regardless of day and time, and they do not take traffic into account (the API specs state that traffic duration is only accessible to business customers, which I am not).
+					<br><br>
+					Let me repeat, <b>The drive times displayed do not take traffic into account</b>.  Since Chicago is obviously a busy city, there is almost always traffic.  The drive times presented on the Existing and Potential maps are much lower than actual times, and it is difficult to determine just how much of a difference traffic would make for times on each map.
+					<br><br>
+					The Google Distance Matrix API calculates drive times in seconds, which I then converted to minutes in PostgreSQL.  PostgreSQL rounds down, so the results here are potentially lower than in reality.
+					</p>
+					<h4>Contour Map</h4>
+					<p>To generate starting points for my drive time calculations, I created a grid of points within the Chicago City Boundary using PostgreSQL.  These points were randomly, so some may be on highways while others are on side streets.
+					This will have an effect on the end data, as can be seen by some anomolies, but I believe that there is enough data to compensate.  There were 2599 total points.
+					<br><br>
+					To generate the map layers, I basically used PostgreSQL to expand each point into a polygon, then take the union of all expanded points that have certain weights.  If you're interested in how to do this, here's a sample query:
+					<br><br>
+					<code>
+						Select 30, ST_AsKML(ST_SymDifference(a.the_geom ,b.the_geom), 5)<br>
+						from <br>
+						(select ST_Union(ST_Expand(geom, .0051)) as the_geom<br>
+						from temp_weighted_points<br>
+						where minute_weight >= 10) as a,<br>
+						(select ST_Union(ST_Expand(geom, .0051)) as the_geom<br>
+						from temp_weighted_points<br>
+						where minute_weight >= 0) as b
+					</code>
+					</p>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+}
